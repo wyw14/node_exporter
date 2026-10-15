@@ -75,6 +75,11 @@ func NewQdiscStatCollector(logger *slog.Logger) (Collector, error) {
 		return nil, fmt.Errorf("collector.qdisc.device-include and collector.qdisc.device-exclude are mutaly exclusive")
 	}
 
+	qdiscDeviceFilter, err := newDeviceFilter(*collectorQdiscDeviceExclude, *collectorQdiscDeviceInclude)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse qdisc device filter flags: %w", err)
+	}
+
 	return &qdiscStatCollector{
 		bytes: typedDesc{prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "qdisc", "bytes_total"),
@@ -112,7 +117,7 @@ func NewQdiscStatCollector(logger *slog.Logger) (Collector, error) {
 			[]string{"device", "kind"}, nil,
 		), prometheus.GaugeValue},
 		logger:       logger,
-		deviceFilter: newDeviceFilter(*collectorQdiscDeviceExclude, *collectorQdiscDeviceInclude),
+		deviceFilter: qdiscDeviceFilter,
 	}, nil
 }
 

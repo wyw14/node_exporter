@@ -60,10 +60,19 @@ type hwMonCollector struct {
 // NewHwMonCollector returns a new Collector exposing /sys/class/hwmon stats
 // (similar to lm-sensors).
 func NewHwMonCollector(logger *slog.Logger) (Collector, error) {
+	chipFilter, err := newDeviceFilter(*collectorHWmonChipExclude, *collectorHWmonChipInclude)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse hwmon chip filter flags: %w", err)
+	}
+	sensorFilter, err := newDeviceFilter(*collectorHWmonSensorExclude, *collectorHWmonSensorInclude)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse hwmon sensor filter flags: %w", err)
+	}
+
 	return &hwMonCollector{
 		logger:       logger,
-		deviceFilter: newDeviceFilter(*collectorHWmonChipExclude, *collectorHWmonChipInclude),
-		sensorFilter: newDeviceFilter(*collectorHWmonSensorExclude, *collectorHWmonSensorInclude),
+		deviceFilter: chipFilter,
+		sensorFilter: sensorFilter,
 	}, nil
 }
 

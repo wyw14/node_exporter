@@ -82,9 +82,14 @@ func NewNetDevCollector(logger *slog.Logger) (Collector, error) {
 		logger.Info("Parsed Flag --collector.netdev.device-include", "flag", *netdevDeviceInclude)
 	}
 
+	netDevFilter, err := newDeviceFilter(*netdevDeviceExclude, *netdevDeviceInclude)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse netdev device filter flags: %w", err)
+	}
+
 	return &netDevCollector{
 		subsystem:    "network",
-		deviceFilter: newDeviceFilter(*netdevDeviceExclude, *netdevDeviceInclude),
+		deviceFilter: netDevFilter,
 		metricDescs:  map[string]*prometheus.Desc{},
 		logger:       logger,
 	}, nil

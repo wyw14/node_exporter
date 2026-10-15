@@ -14,6 +14,7 @@
 package collector
 
 import (
+	"fmt"
 	"regexp"
 )
 
@@ -22,16 +23,30 @@ type deviceFilter struct {
 	acceptPattern *regexp.Regexp
 }
 
-func newDeviceFilter(ignoredPattern, acceptPattern string) (f deviceFilter) {
+// newDeviceFilter compiles the given exclude/include regular expressions.
+// It returns an error instead of panicking on an invalid pattern so that a
+// malformed flag value is reported cleanly during collector construction and
+// can never crash a running exporter.
+func newDeviceFilter(ignoredPattern, acceptPattern string) (deviceFilter, error) {
+	var f deviceFilter
+
 	if ignoredPattern != "" {
-		f.ignorePattern = regexp.MustCompile(ignoredPattern)
+		pattern, err := regexp.Compile(ignoredPattern)
+		if err != nil {
+			return deviceFilter{}, fmt.Errorf("invalid exclude regular expression %q: %w", ignoredPattern, err)
+		}
+		f.ignorePattern = pattern
 	}
 
 	if acceptPattern != "" {
-		f.acceptPattern = regexp.MustCompile(acceptPattern)
+		pattern, err := regexp.Compile(acceptPattern)
+		if err != nil {
+			return deviceFilter{}, fmt.Errorf("invalid include regular expression %q: %w", acceptPattern, err)
+		}
+		f.acceptPattern = pattern
 	}
 
-	return
+	return f, nil
 }
 
 // ignored returns whether the device should be ignored

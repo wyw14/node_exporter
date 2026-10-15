@@ -266,7 +266,11 @@ func newMountPointsFilter(logger *slog.Logger) (deviceFilter, error) {
 		logger.Info("Parsed flag --collector.filesystem.mount-points-include", "flag", *mountPointsInclude)
 	}
 
-	return newDeviceFilter(*mountPointsExclude, *mountPointsInclude), nil
+	filter, err := newDeviceFilter(*mountPointsExclude, *mountPointsInclude)
+	if err != nil {
+		return deviceFilter{}, err
+	}
+	return filter, nil
 }
 
 func newFSTypeFilter(logger *slog.Logger) (deviceFilter, error) {
@@ -295,5 +299,9 @@ func newFSTypeFilter(logger *slog.Logger) (deviceFilter, error) {
 		logger.Info("Parsed flag --collector.filesystem.fs-types-include", "flag", *fsTypesInclude)
 	}
 
-	return newDeviceFilter(*fsTypesExclude, *fsTypesInclude), nil
+	filter, err := newDeviceFilter(*fsTypesExclude, *fsTypesInclude)
+	if err != nil {
+		return deviceFilter{}, err
+	}
+	return filter, nil
 }

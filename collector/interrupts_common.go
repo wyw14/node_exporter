@@ -16,6 +16,7 @@
 package collector
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/alecthomas/kingpin/v2"
@@ -41,6 +42,11 @@ var (
 
 // NewInterruptsCollector returns a new Collector exposing interrupts stats.
 func NewInterruptsCollector(logger *slog.Logger) (Collector, error) {
+	nameFilter, err := newDeviceFilter(*interruptsExclude, *interruptsInclude)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse interrupts name filter flags: %w", err)
+	}
+
 	return &interruptsCollector{
 		desc: typedDesc{prometheus.NewDesc(
 			namespace+"_interrupts_total",
@@ -48,7 +54,7 @@ func NewInterruptsCollector(logger *slog.Logger) (Collector, error) {
 			interruptLabelNames, nil,
 		), prometheus.CounterValue},
 		logger:       logger,
-		nameFilter:   newDeviceFilter(*interruptsExclude, *interruptsInclude),
+		nameFilter:   nameFilter,
 		includeZeros: *interruptsIncludeZeros,
 	}, nil
 }

@@ -104,12 +104,21 @@ func makeEthtoolCollector(logger *slog.Logger) (*ethtoolCollector, error) {
 		logger.Info("Parsed flag --collector.ethtool.metrics-include", "flag", *ethtoolIncludedMetrics)
 	}
 
+	ethtoolDeviceFilter, err := newDeviceFilter(*ethtoolDeviceExclude, *ethtoolDeviceInclude)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse ethtool device filter flags: %w", err)
+	}
+	metricsPattern, err := regexp.Compile(*ethtoolIncludedMetrics)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse --collector.ethtool.metrics-include regular expression %q: %w", *ethtoolIncludedMetrics, err)
+	}
+
 	// Pre-populate some common ethtool metrics.
 	return &ethtoolCollector{
 		fs:             fs,
 		ethtool:        &ethtoolLibrary{e},
-		deviceFilter:   newDeviceFilter(*ethtoolDeviceExclude, *ethtoolDeviceInclude),
-		metricsPattern: regexp.MustCompile(*ethtoolIncludedMetrics),
+		deviceFilter:   ethtoolDeviceFilter,
+		metricsPattern: metricsPattern,
 		logger:         logger,
 		entries: map[string]*prometheus.Desc{
 			"rx_bytes": prometheus.NewDesc(

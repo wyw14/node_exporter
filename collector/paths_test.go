@@ -75,3 +75,38 @@ func TestCustomSysPath(t *testing.T) {
 		t.Errorf("Expected: %s, Got: %s", want, got)
 	}
 }
+
+func TestRootfsStripPrefix(t *testing.T) {
+	previous := *rootfsPath
+	t.Cleanup(func() { *rootfsPath = previous })
+
+	*rootfsPath = "/host"
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{name: "rootfs itself", path: "/host", want: "/"},
+		{name: "rootfs with trailing slash", path: "/host/", want: "/"},
+		{name: "path under rootfs", path: "/host/media/volume1", want: "/media/volume1"},
+		{name: "similar prefix must not be stripped", path: "/hostfoo", want: "/hostfoo"},
+		{name: "similar prefix directory must not be stripped", path: "/hostile/mount", want: "/hostile/mount"},
+		{name: "unrelated absolute path is kept", path: "/proc", want: "/proc"},
+		{name: "actual root is kept", path: "/", want: "/"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := rootfsStripPrefix(tt.path); got != tt.want {
+				t.Errorf("rootfsStripPrefix(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
+	}
+
+	*rootfsPath = "/"
+	for _, path := range []string{"/host", "/host/media", "/proc", "/"} {
+		if got := rootfsStripPrefix(path); got != path {
+			t.Errorf("rootfsStripPrefix(%q) with rootfs / = %q, want %q", path, got, path)
+		}
+	}
+}

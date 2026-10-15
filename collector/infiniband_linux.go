@@ -142,7 +142,11 @@ func NewInfiniBandCollector(logger *slog.Logger) (Collector, error) {
 	if *infinibandDeviceExclude != "" {
 		i.logger.Info("Parsed flag --collector.infiniband.device-exclude", "flag", *infinibandDeviceExclude)
 	}
-	i.deviceFilter = newDeviceFilter(*infinibandDeviceExclude, *infinibandDeviceInclude)
+	infinibandDeviceFilter, err := newDeviceFilter(*infinibandDeviceExclude, *infinibandDeviceInclude)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse infiniband device filter flags: %w", err)
+	}
+	i.deviceFilter = infinibandDeviceFilter
 
 	return &i, nil
 }

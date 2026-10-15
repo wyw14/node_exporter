@@ -47,12 +47,17 @@ func NewSlabinfoCollector(logger *slog.Logger) (Collector, error) {
 		return nil, fmt.Errorf("failed to open procfs: %w", err)
 	}
 
+	slabNameFilter, err := newDeviceFilter(*slabNameExclude, *slabNameInclude)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse slabinfo filter flags: %w", err)
+	}
+
 	return &slabinfoCollector{
 		logger:         logger,
 		fs:             fs,
 		subsystem:      "slabinfo",
 		labels:         []string{"slab"},
-		slabNameFilter: newDeviceFilter(*slabNameExclude, *slabNameInclude),
+		slabNameFilter: slabNameFilter,
 	}, nil
 }
 

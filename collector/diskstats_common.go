@@ -114,5 +114,5 @@ func newDiskstatsDeviceFilter(logger *slog.Logger) (deviceFilter, error) {
 		logger.Info("Parsed Flag --collector.diskstats.device-include", "flag", *diskstatsDeviceInclude)
 	}
 
-	return newDeviceFilter(*diskstatsDeviceExclude, *diskstatsDeviceInclude), nil
+	return newDeviceFilter(*diskstatsDeviceExclude, *diskstatsDeviceInclude)
 }

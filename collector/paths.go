@@ -45,11 +45,21 @@ func udevDataFilePath(name string) string {
 	return filepath.Join(*udevDataPath, name)
 }
 
+// rootfsStripPrefix removes the configured host rootfs prefix from a path read
+// out of the host mount table. The prefix is only stripped on a path boundary
+// so that e.g. rootfs "/host" does not turn "/hostfoo" into "foo".
 func rootfsStripPrefix(path string) string {
 	if *rootfsPath == "/" {
 		return path
 	}
-	stripped := strings.TrimPrefix(path, *rootfsPath)
+	prefix := strings.TrimSuffix(*rootfsPath, "/")
+	if path == prefix {
+		return "/"
+	}
+	if !strings.HasPrefix(path, prefix+"/") {
+		return path
+	}
+	stripped := strings.TrimPrefix(path, prefix)
 	if stripped == "" {
 		return "/"
 	}

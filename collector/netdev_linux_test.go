@@ -163,7 +163,7 @@ var links = []rtnetlink.LinkMessage{
 }
 
 func TestNetDevStatsIgnore(t *testing.T) {
-	filter := newDeviceFilter("^veth", "")
+	filter := mustNewDeviceFilter(t, "^veth", "")
 
 	netStats := parseNetlinkStats(links, &filter, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
@@ -197,7 +197,7 @@ func TestNetDevStatsIgnore(t *testing.T) {
 }
 
 func TestNetDevStatsAccept(t *testing.T) {
-	filter := newDeviceFilter("", "^💩0$")
+	filter := mustNewDeviceFilter(t, "", "^💩0$")
 	netStats := parseNetlinkStats(links, &filter, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	if want, got := 1, len(netStats); want != got {
@@ -228,7 +228,7 @@ func TestNetDevLegacyMetricNames(t *testing.T) {
 		"transmit_compressed",
 	}
 
-	filter := newDeviceFilter("", "")
+	filter := mustNewDeviceFilter(t, "", "")
 	netStats := parseNetlinkStats(links, &filter, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	for dev, devStats := range netStats {
@@ -261,7 +261,7 @@ func TestNetDevLegacyMetricValues(t *testing.T) {
 		"transmit_compressed": 20,
 	}
 
-	filter := newDeviceFilter("", "^enp0s0f0$")
+	filter := mustNewDeviceFilter(t, "", "^enp0s0f0$")
 	netStats := parseNetlinkStats(links, &filter, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	metrics, ok := netStats["enp0s0f0"]
 	if !ok {
@@ -283,7 +283,7 @@ func TestNetDevLegacyMetricValues(t *testing.T) {
 }
 
 func TestNetDevMetricValues(t *testing.T) {
-	filter := newDeviceFilter("", "")
+	filter := mustNewDeviceFilter(t, "", "")
 	netStats := parseNetlinkStats(links, &filter, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	for _, msg := range links {
@@ -337,4 +337,13 @@ func TestNetDevMetricValues(t *testing.T) {
 			}
 		}
 	}
+}
+
+func mustNewDeviceFilter(t *testing.T, ignore, accept string) deviceFilter {
+	t.Helper()
+	filter, err := newDeviceFilter(ignore, accept)
+	if err != nil {
+		t.Fatalf("failed to compile device filter (ignore=%q accept=%q): %v", ignore, accept, err)
+	}
+	return filter
 }

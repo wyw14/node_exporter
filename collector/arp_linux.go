@@ -55,9 +55,14 @@ func NewARPCollector(logger *slog.Logger) (Collector, error) {
 		return nil, fmt.Errorf("failed to open procfs: %w", err)
 	}
 
+	arpDeviceFilter, err := newDeviceFilter(*arpDeviceExclude, *arpDeviceInclude)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse arp device filter flags: %w", err)
+	}
+
 	return &arpCollector{
 		fs:           fs,
-		deviceFilter: newDeviceFilter(*arpDeviceExclude, *arpDeviceInclude),
+		deviceFilter: arpDeviceFilter,
 		logger:       logger,
 	}, nil
 }

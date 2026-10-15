@@ -33,11 +33,41 @@ func TestDeviceFilter(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		filter := newDeviceFilter(test.ignore, test.accept)
+		filter, err := newDeviceFilter(test.ignore, test.accept)
+		if err != nil {
+			t.Fatalf("unexpected error compiling filter (ignore=%q accept=%q): %v", test.ignore, test.accept, err)
+		}
 		result := filter.ignored(test.name)
 
 		if result != test.expectedResult {
 			t.Errorf("ignorePattern=%v acceptPattern=%v ifname=%v expected=%v result=%v", test.ignore, test.accept, test.name, test.expectedResult, result)
 		}
+	}
+}
+
+func TestNewDeviceFilterInvalidRegexp(t *testing.T) {
+	// A malformed regular expression must be reported as an error instead of
+	// panicking, so that a bad flag value can never crash the exporter.
+	tests := []struct {
+		name   string
+		ignore string
+		accept string
+	}{
+		{name: "invalid exclude", ignore: "["},
+		{name: "invalid include", accept: "("},
+		{name: "both invalid", ignore: "foo[", accept: "bar("},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("newDeviceFilter panicked on invalid pattern: %v", r)
+				}
+			}()
+			if _, err := newDeviceFilter(tt.ignore, tt.accept); err == nil {
+				t.Fatalf("expected an error for ignore=%q accept=%q, got nil", tt.ignore, tt.accept)
+			}
+		})
 	}
 }
