@@ -15,6 +15,7 @@
 package collector
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -144,33 +145,47 @@ func (n NodeCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements the prometheus.Collector interface.
 func (n NodeCollector) Collect(ch chan<- prometheus.Metric) {
+	// prometheus/client_golang does not propagate the scrape's request context
+	// to collectors, so each collection starts with a background context.
+	// Collectors implementing CollectorWithContext are still able to abort an
+	// expensive scan cooperatively when a cancellable context is supplied
+	// through an embedded use of the exporter.
+	ctx := context.Background()
 	wg := sync.WaitGroup{}
 	wg.Add(len(n.Collectors))
 	for name, c := range n.Collectors {
 		go func(name string, c Collector) {
-			execute(name, c, ch, n.logger)
+			execute(ctx, name, c, ch, n.logger)
 			wg.Done()
 		}(name, c)
 	}
 	wg.Wait()
 }
 
-func execute(name string, c Collector, ch chan<- prometheus.Metric, logger *slog.Logger) {
+func execute(ctx context.Context, name string, c Collector, ch chan<- prometheus.Metric, logger *slog.Logger) {
 	begin := time.Now()
-	err := c.Update(ch)
+	var err error
+	if cc, ok := c.(CollectorWithContext); ok {
+		err = cc.UpdateContext(ctx, ch)
+	} else {
+		err = c.Update(ch)
+	}
 	duration := time.Since(begin)
 	var success float64
 
-	if err != nil {
-		if IsNoDataError(err) {
-			logger.Debug("collector returned no data", "name", name, "duration_seconds", duration.Seconds(), "err", err)
-		} else {
-			logger.Error("collector failed", "name", name, "duration_seconds", duration.Seconds(), "err", err)
-		}
-		success = 0
-	} else {
+	switch {
+	case err == nil:
 		logger.Debug("collector succeeded", "name", name, "duration_seconds", duration.Seconds())
 		success = 1
+	case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
+		logger.Debug("collector scrape canceled", "name", name, "duration_seconds", duration.Seconds(), "err", err)
+		success = 0
+	case IsNoDataError(err):
+		logger.Debug("collector returned no data", "name", name, "duration_seconds", duration.Seconds(), "err", err)
+		success = 0
+	default:
+		logger.Error("collector failed", "name", name, "duration_seconds", duration.Seconds(), "err", err)
+		success = 0
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, duration.Seconds(), name)
 	ch <- prometheus.MustNewConstMetric(scrapeSuccessDesc, prometheus.GaugeValue, success, name)
@@ -180,6 +195,15 @@ func execute(name string, c Collector, ch chan<- prometheus.Metric, logger *slog
 type Collector interface {
 	// Get new metrics and expose them via prometheus registry.
 	Update(ch chan<- prometheus.Metric) error
+}
+
+// CollectorWithContext is an optional Collector interface for collectors that
+// can cooperatively abort an in-flight scrape, for example while scanning a
+// very large process table. Collectors must not emit partial metrics when the
+// context is canceled and must leave any internal state consistent so that
+// the next scrape is unaffected.
+type CollectorWithContext interface {
+	UpdateContext(ctx context.Context, ch chan<- prometheus.Metric) error
 }
 
 type typedDesc struct {

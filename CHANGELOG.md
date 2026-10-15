@@ -1,5 +1,7 @@
 ## master / unreleased
 
+* [ENHANCEMENT] processes: Cache process scans across scrapes, detect PID reuse via process start time, tolerate short-lived processes and permission errors, and abort scans on scrape cancellation
+
 ## 1.12.1 / 2026-07-14
 
 * [BUGFIX] perf: Fix perf profiler flag handling #3731
